@@ -1,4 +1,4 @@
-first create an data folder in root folder 
+first create an "data" folder in root folder 
 install node js : Node Version: v22.23.1 (Tested)
 Status: Production Ready ✅
 run commands : npm install &
