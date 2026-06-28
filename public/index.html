@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Grocery POS</title>
+<link rel="stylesheet" href="style.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body class="dark">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">🛒</div>
+      <div>
+        <div class="brand-name" id="brandName">GroceryPOS</div>
+        <div class="brand-sub" data-i18n="brand_sub">Smart Retail</div>
+      </div>
+    </div>
+    <nav>
+      <a class="nav-item active" data-view="pos">🧾 <span data-i18n="nav_pos">POS / Sales</span></a>
+      <a class="nav-item" data-view="dashboard">📊 <span data-i18n="nav_dashboard">Dashboard</span></a>
+      <a class="nav-item" data-view="products">📦 <span data-i18n="nav_products">Products</span></a>
+      <a class="nav-item" data-view="vendors">🏭 <span data-i18n="nav_vendors">Vendors</span></a>
+      <a class="nav-item" data-view="sales">📋 <span data-i18n="nav_sales">Sales History</span></a>
+      <a class="nav-item" data-view="admin">🔐 <span data-i18n="nav_admin">Admin</span></a>
+      <a class="nav-item" data-view="lowstock">⚠️ <span data-i18n="nav_lowstock">Low Stock</span></a>
+      <a class="nav-item" data-view="orders">📤 <span data-i18n="nav_orders">Orders</span></a>
+      <a class="nav-item" data-view="backup">💾 <span data-i18n="nav_backup">Backup</span></a>
+      <a class="nav-item" data-view="settings">⚙️ <span data-i18n="nav_settings">Settings</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="quick-toggles">
+        <button class="toggle-btn" id="themeToggle" title="Theme">🌙</button>
+        <button class="toggle-btn" id="langToggle" title="Language">EN</button>
+      </div>
+      <div class="db-status" id="dbStatusIndicator">
+        <span class="db-dot local"></span>
+        <span>Local DB</span>
+      </div>
+      <div class="app-footer-text" id="appFooterText">Powered by Grocery POS v2.0</div>
+    </div>
+  </aside>
+
+  <main class="content">
+    <!-- POS -->
+    <section class="view active" id="view-pos">
+      <div class="view-header">
+        <h1 data-i18n="pos_title">Point of Sale</h1>
+        <div class="barcode-box">
+          <input type="text" id="barcodeInput" data-i18n-ph="barcode_ph" placeholder="🔍 Scan or type barcode & press Enter" autofocus />
+          <button id="btnFocusBarcode">📷</button>
+          <button id="btnQRScan" class="btn btn-primary">📱 QR</button>
+        </div>
+      </div>
+      <div class="pos-grid">
+        <div class="pos-left">
+          <div class="search-bar"><input type="text" id="productSearch" data-i18n-ph="search_ph" placeholder="Search products..." /></div>
+          <div class="product-grid" id="productGrid"></div>
+        </div>
+        <div class="pos-right">
+          <h3 data-i18n="current_sale">Current Sale</h3>
+          <div class="cart" id="cart"></div>
+          <div class="cart-summary">
+            <div class="row"><span data-i18n="subtotal">Subtotal</span><span id="sumSubtotal">RS-0.00</span></div>
+            <div class="row"><span><span data-i18n="discount">Discount</span> (<span class="cur-label">RS-</span>)</span><input type="number" id="discountInput" value="0" min="0" step="0.01" /></div>
+            <div class="row"><span data-i18n="tax">Tax</span> (%)<input type="number" id="taxInput" value="0" min="0" step="0.01" /></div>
+            <div class="row total"><span data-i18n="grand_total">Grand Total</span><span id="sumTotal">RS-0.00</span></div>
+            <div class="row"><span data-i18n="payment">Payment</span>
+              <select id="paymentMethod">
+                <option value="cash">Cash</option><option value="card">Card</option><option value="mobile">Mobile</option>
+              </select>
+            </div>
+            <div class="row"><span data-i18n="amount_paid">Amount Paid</span><input type="number" id="amountPaid" value="0" min="0" step="0.01" /></div>
+            <div class="row"><span data-i18n="change">Change</span><span id="sumChange">RS-0.00</span></div>
+          </div>
+          <div class="cart-actions">
+            <button class="btn btn-secondary" id="btnClearCart" data-i18n="clear">Clear</button>
+            <button class="btn btn-primary" id="btnCheckout">💳 <span data-i18n="checkout">Checkout</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="view" id="view-dashboard">
+      <div class="view-header"><h1 data-i18n="dashboard_title">Dashboard</h1></div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label" data-i18n="today_sales">Today's Sales</div><div class="stat-value" id="stTodaySales">RS-0</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="today_orders">Today's Orders</div><div class="stat-value" id="stTodayCount">0</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="total_products">Total Products</div><div class="stat-value" id="stProducts">0</div></div>
+        <div class="stat-card warn"><div class="stat-label" data-i18n="low_stock_items">Low Stock</div><div class="stat-value" id="stLowStock">0</div></div>
+        <div class="stat-card"><div class="stat-label" data-i18n="vendors">Vendors</div><div class="stat-value" id="stVendors">0</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><h3 data-i18n="sales_7days">Sales - Last 7 Days</h3><canvas id="chartSales"></canvas></div>
+        <div class="chart-card"><h3 data-i18n="top_5_products">Top 5 Products</h3><canvas id="chartTop"></canvas></div>
+        <div class="chart-card"><h3 data-i18n="revenue_category">Revenue by Category</h3><canvas id="chartCat"></canvas></div>
+      </div>
+    </section>
+
+    <!-- PRODUCTS -->
+    <section class="view" id="view-products">
+      <div class="view-header">
+        <h1 data-i18n="products_title">Products</h1>
+        <button class="btn btn-primary" id="btnNewProduct">+ <span data-i18n="add_product">Add Product</span></button>
+      </div>
+      <div class="table-wrap">
+        <table id="productsTable">
+          <thead><tr><th data-i18n="barcode">Barcode</th><th data-i18n="name">Name</th><th data-i18n="category">Category</th><th data-i18n="vendor">Vendor</th><th data-i18n="cost">Cost</th><th data-i18n="price">Price</th><th data-i18n="stock">Stock</th><th data-i18n="unit">Unit</th><th data-i18n="actions">Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VENDORS -->
+    <section class="view" id="view-vendors">
+      <div class="view-header">
+        <h1 data-i18n="vendors_title">Vendors</h1>
+        <button class="btn btn-primary" id="btnNewVendor">+ <span data-i18n="add_vendor">Add Vendor</span></button>
+      </div>
+      <div class="table-wrap">
+        <table id="vendorsTable">
+          <thead><tr><th data-i18n="name">Name</th><th data-i18n="contact">Contact</th><th data-i18n="email">Email</th><th data-i18n="address">Address</th><th data-i18n="actions">Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SALES -->
+    <section class="view" id="view-sales">
+      <div class="view-header">
+        <h1 data-i18n="sales_title">Sales History</h1>
+        <button class="btn btn-secondary" onclick="printSalesReport()">🖨 <span data-i18n="print_report">Print Report</span></button>
+      </div>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label data-i18n="quick_filter">Filter:</label>
+          <select id="salesPeriod">
+            <option value="" data-i18n="all">All</option>
+            <option value="hour">Last Hour</option>
+            <option value="day">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="custom">Custom Range</option>
+          </select>
+        </div>
+        <div class="filter-group" id="customDateRange" style="display:none;">
+          <label>From:</label><input type="date" id="salesFrom" />
+          <label>To:</label><input type="date" id="salesTo" />
+        </div>
+        <button class="btn btn-primary" id="btnApplyFilter" data-i18n="apply">Apply</button>
+      </div>
+      <div class="sales-summary" id="salesSummary"></div>
+      <div class="table-wrap">
+        <table id="salesTable">
+          <thead><tr><th data-i18n="invoice">Invoice</th><th data-i18n="date">Date</th><th data-i18n="items">Items</th><th data-i18n="total">Total</th><th data-i18n="discount">Discount</th><th data-i18n="tax">Tax</th><th data-i18n="grand">Grand</th><th data-i18n="payment">Payment</th><th data-i18n="actions">Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="view" id="view-admin">
+      <div class="view-header">
+        <h1>🔐 <span data-i18n="admin_title">Admin Panel</span></h1>
+        <button class="btn btn-secondary" id="btnAdminLogout" style="display:none;">🚪 Logout</button>
+      </div>
+      <div id="adminLoginBox" class="admin-login-box">
+        <h3 data-i18n="admin_login">Admin Login</h3>
+        <p data-i18n="admin_login_desc">Enter password to continue</p>
+        <input type="password" id="adminPasswordInput" placeholder="Password" />
+        <button class="btn btn-primary" id="btnAdminLogin" data-i18n="login">Login</button>
+      </div>
+      <div id="adminContent" style="display:none;">
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="admin-sales">Sales Management</button>
+          <button class="admin-tab" data-tab="admin-qr">QR Scanner</button>
+          <button class="admin-tab" data-tab="admin-import">Import Data</button>
+          <button class="admin-tab" data-tab="admin-db">Database</button>
+        </div>
+        <div class="admin-panel active" id="panel-admin-sales">
+          <div class="panel-header">
+            <h3>📋 Sales Management</h3>
+            <button class="btn btn-secondary" onclick="adminImportSales()">⬆ Import Sales CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table id="adminSalesTable">
+              <thead><tr><th>Invoice</th><th>Date</th><th>Items</th><th>Grand Total</th><th>Payment</th><th>Actions</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-panel" id="panel-admin-qr">
+          <h3>📱 QR / Barcode Scanner</h3>
+          <div class="qr-scanner-box">
+            <div id="qr-reader" style="width:100%;max-width:500px;"></div>
+            <div class="qr-actions">
+              <button class="btn btn-primary" id="btnStartQRScan">Start Scanner</button>
+              <button class="btn btn-danger" id="btnStopQRScan" style="display:none;">Stop Scanner</button>
+            </div>
+            <div id="qr-result" class="qr-result"></div>
+          </div>
+          <hr style="margin:20px 0;border-color:var(--border);"/>
+          <h3>🏷️ Generate QR Codes</h3>
+          <div class="qr-generate-box" style="flex-direction:column;align-items:stretch;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <select id="qrProductSelect" style="flex:1;min-width:200px;"></select>
+              <button class="btn btn-primary" id="btnGenerateQR">Generate QR</button>
+              <button class="btn btn-success" onclick="batchGenerateQR()">📦 All QRs</button>
+            </div>
+            <div id="qr-output" class="qr-output" style="margin-top:16px;"></div>
+          </div>
+        </div>
+        <div class="admin-panel" id="panel-admin-import">
+          <h3>⬆️ Import Data</h3>
+          <div class="import-grid">
+            <div class="import-card">
+              <h4>📦 Import Products CSV</h4>
+              <label class="btn btn-primary">⬆ Choose File<input type="file" id="adminImportProductsFile" accept=".csv" style="display:none" /></label>
+            </div>
+            <div class="import-card">
+              <h4>🧾 Import Sales CSV</h4>
+              <label class="btn btn-primary">⬆ Choose File<input type="file" id="adminImportSalesFile" accept=".csv" style="display:none" /></label>
+            </div>
+          </div>
+        </div>
+        <div class="admin-panel" id="panel-admin-db">
+          <h3>🗄️ Database</h3>
+          <div class="db-actions">
+            <div class="db-card">
+              <h4>⬇️ Download Database</h4>
+              <button class="btn btn-primary" id="btnDownloadDb">⬇ Download</button>
+            </div>
+            <div class="db-card">
+              <h4>⬆️ Upload Database</h4>
+              <label class="btn btn-danger">⬆ Upload<input type="file" id="adminUploadDbFile" accept=".db" style="display:none" /></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOW STOCK -->
+    <section class="view" id="view-lowstock">
+      <div class="view-header"><h1 data-i18n="lowstock_title">⚠️ Low Stock</h1></div>
+      <div class="table-wrap">
+        <table id="lowStockTable">
+          <thead><tr><th>Barcode</th><th>Name</th><th>Category</th><th>Vendor</th><th>Stock</th><th>Threshold</th><th>Action</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section class="view" id="view-orders">
+      <div class="view-header">
+        <h1 data-i18n="orders_title">📤 Order List</h1>
+        <button class="btn btn-primary" onclick="printOrderList()">🖨 Print</button>
+      </div>
+      <div class="order-info" id="orderInfo"></div>
+      <div class="table-wrap">
+        <table id="ordersTable">
+          <thead><tr><th>#</th><th>Product</th><th>Stock</th><th>Threshold</th><th>Order Qty</th><th>Vendor</th><th>Contact</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- BACKUP -->
+    <section class="view" id="view-backup">
+      <div class="view-header"><h1>💾 Backup</h1></div>
+      <div class="backup-grid">
+        <div class="backup-card">
+          <h3>📦 Products</h3>
+          <a href="/api/products/export/csv" class="btn btn-primary" download>⬇ Export CSV</a>
+        </div>
+        <div class="backup-card">
+          <h3>🧾 Sales</h3>
+          <a href="/api/sales/export/csv" class="btn btn-primary" download>⬇ Export CSV</a>
+        </div>
+        <div class="backup-card">
+          <h3>🗄️ Database</h3>
+          <button class="btn btn-primary" id="btnDownloadDb2">⬇ Download DB</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="view" id="view-settings">
+      <div class="view-header"><h1 data-i18n="settings_title">⚙️ Settings</h1></div>
+      <div class="settings-grid">
+        
+        <!-- STORE INFO -->
+        <div class="settings-card">
+          <h3>🏪 Store Information</h3>
+          <div class="form-row"><label>Store Name</label><input id="set_store_name" /></div>
+          <div class="form-row"><label>Address</label><input id="set_store_address" /></div>
+          <div class="form-row"><label>Phone</label><input id="set_store_phone" /></div>
+        </div>
+
+        <!-- APPEARANCE -->
+        <div class="settings-card">
+          <h3>🎨 Appearance</h3>
+          <div class="form-row"><label>Currency Symbol</label><input id="set_currency" placeholder="RS-, $, €, ₹" /></div>
+          <div class="form-row"><label>Theme</label>
+            <select id="set_theme">
+              <option value="dark">🌙 Dark</option>
+              <option value="light">☀️ Light</option>
+            </select>
+          </div>
+          <div class="form-row"><label>Language</label>
+            <select id="set_language">
+              <option value="en">English</option>
+              <option value="ur">اردو (Urdu)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ADMIN PASSWORD -->
+        <div class="settings-card">
+          <h3>🔐 Admin Password</h3>
+          <div class="form-row"><label>New Password (empty = remove)</label><input type="password" id="set_admin_password" /></div>
+          <div class="form-row"><label>Confirm Password</label><input type="password" id="set_admin_password_confirm" /></div>
+          <div class="password-info">
+            🔑 <b>Password Reset:</b><br/>
+            Agar password bhool jayein toh:<br/>
+            1. Server band karein (Ctrl+C)<br/>
+            2. <code>data/pos.db</code> ko <b>DB Browser for SQLite</b> se kholen<br/>
+            3. <code>settings</code> table → <code>admin_password</code> row delete karein<br/>
+            4. Save karke server restart karein
+          </div>
+        </div>
+
+        <!-- CUSTOM FOOTERS -->
+        <div class="settings-card">
+          <h3>📝 Custom Footers</h3>
+          <div class="form-row">
+            <label>Receipt Footer (Bill ke bottom)</label>
+            <input id="set_receipt_footer" placeholder="Thank you for your purchase!" />
+          </div>
+          <div class="form-row">
+            <label>App Footer (Sidebar bottom)</label>
+            <input id="set_app_footer" placeholder="Powered by Grocery POS v2.0" />
+          </div>
+        </div>
+
+        <!-- DATABASE SETTINGS -->
+        <div class="settings-card full-width">
+          <h3>🗄️ Database Settings</h3>
+          <div class="form-row">
+            <label>Database Mode</label>
+            <select id="set_db_mode">
+              <option value="local">🏠 Local SQLite (Offline)</option>
+              <option value="mongodb">🍃 MongoDB (Cloud)</option>
+              <option value="mysql">🐬 MySQL (Cloud)</option>
+              <option value="postgresql">🐘 PostgreSQL (Cloud)</option>
+            </select>
+          </div>
+          
+          <div id="dbCredentialsForm" style="display:none;">
+            <div class="db-credentials-grid">
+              <div class="form-row"><label>Host</label><input id="db_host" placeholder="localhost" /></div>
+              <div class="form-row"><label>Port</label><input id="db_port" placeholder="27017" /></div>
+              <div class="form-row"><label>Username</label><input id="db_username" placeholder="admin" /></div>
+              <div class="form-row"><label>Password</label><input type="password" id="db_password" /></div>
+              <div class="form-row"><label>Database Name</label><input id="db_name" placeholder="grocery_pos" /></div>
+              <div class="form-row mongodb-only" style="display:none;"><label>Connection URI (Optional)</label><input id="db_uri" placeholder="mongodb://..." /></div>
+            </div>
+            <div class="db-info-box">
+              <b>ℹ️ Info:</b><br/>
+              • <b>Local:</b> Offline kaam karta hai<br/>
+              • <b>MongoDB:</b> Port 27017, internet zaruri<br/>
+              • <b>MySQL:</b> Port 3306, internet zaruri<br/>
+              • <b>PostgreSQL:</b> Port 5432, internet zaruri
+            </div>
+          </div>
+          
+          <div class="db-actions-row">
+            <button class="btn btn-secondary" id="btnTestDbConnection">🔌 Test Connection</button>
+            <button class="btn btn-primary" id="btnConnectDb">🔗 Connect</button>
+            <button class="btn btn-danger" id="btnDisconnectDb" style="display:none;">🔌 Disconnect</button>
+          </div>
+          <div id="dbConnectionStatus" class="db-status-box"></div>
+        </div>
+
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary" id="btnSaveSettings">💾 Save Settings</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="modalTitle">Title</h3>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="modalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="qrScanModal">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>📱 Scan QR</h3>
+        <button class="close-btn" onclick="closePosQRScanner()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="pos-qr-reader" style="width:100%;"></div>
+        <div id="pos-qr-status" style="text-align:center;margin-top:10px;color:var(--muted);"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="receiptPrintArea"></div>
+  <div id="orderPrintArea"></div>
+  <div id="salesReportPrintArea"></div>
+
+    <!-- Sale Complete Popup -->
+  <div class="modal" id="saleCompleteModal">
+    <div class="modal-box" style="max-width:600px;">
+      <div class="modal-head" style="background:var(--success);color:white;">
+        <h3>✅ Sale Completed!</h3>
+        <button class="close-btn" style="color:white;" onclick="closeSalePopup()">✕</button>
+      </div>
+      <div class="modal-body" id="saleCompleteBody" style="max-height:60vh;overflow-y:auto;">
+        <!-- Receipt preview will be injected here -->
+      </div>
+      <div class="modal-foot" style="justify-content:space-between;">
+        <div>
+          <button class="btn btn-danger" id="btnDeleteSale" style="margin-right:8px;">🗑 Delete Sale</button>
+          <button class="btn btn-secondary" id="btnEditSale">✏️ Edit Sale</button>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="btnReprintReceipt">🖨 Print Again</button>
+          <button class="btn btn-success" onclick="closeSalePopup()">✓ Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
